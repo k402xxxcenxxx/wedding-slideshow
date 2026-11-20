@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>婚紗輪播 編輯器</title>
+<meta name="description" content="在瀏覽器裡把照片和音樂做成輪播影片，檔案不會上傳。">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;1,400&family=Great+Vibes&display=swap">
+<style>
+:root{--bg:#f3f0ea;--panel:#fbfaf7;--line:#e5dfd4;--ink:#5b5247;--mute:#a39a8c;--acc:#b8a272;--acc2:#efe6d0;--sel:#c9a86a;--r:14px}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.4 system-ui,"Microsoft JhengHei",sans-serif;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+button{white-space:nowrap;border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 12px;cursor:pointer}
+button:hover{background:var(--acc2)}
+button:disabled{opacity:.4;pointer-events:none}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+button.pri:hover{filter:brightness(1.05)}
+input[type=number],input[type=text]{border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:#fff;width:100%}
+#app{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:52px minmax(0,1fr) 300px;height:100%;gap:10px;padding:10px}
+header{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:0 14px}
+header h1{font-size:14px;margin:0 10px 0 0;font-weight:600}
+header .sp{flex:1}
+#tc{font-variant-numeric:tabular-nums;min-width:110px;color:var(--mute)}
+#status{color:var(--mute);min-width:120px;text-align:right}
+main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:10px;min-height:0}
+#pv{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px;min-height:0;min-width:0}
+#pvbox{position:relative;width:100%;height:100%;overflow:hidden}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;border-radius:24px;
+  background:radial-gradient(ellipse at 50% 40%,#f2efea,#e3ded6);box-shadow:0 0 0 2px #e5dfd4;
+  font-family:'Cormorant Garamond',Georgia,serif;color:#8b7f70}
+.f{position:absolute;inset:0}.f>*{position:absolute}
+.f img{box-shadow:0 24px 60px rgba(70,55,40,.16);will-change:transform,opacity}
+.f img.bg{inset:-8%;width:116%;height:116%;object-fit:cover;filter:blur(50px) saturate(.8) brightness(1.1);box-shadow:none}
+.veil{inset:0;background:rgba(246,243,238,.5)}
+.cap{font-size:34px;letter-spacing:.5em;text-transform:uppercase;white-space:nowrap}
+.scr{font-family:'Great Vibes',cursive;font-size:100px;color:#b8a272;white-space:nowrap}
+.title{inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px}
+.sp{font-style:normal;font-size:40px}
+#ov{position:absolute;inset:0;z-index:6000;pointer-events:none}
+.slot{position:absolute;border:5px dashed rgba(184,162,114,.9);border-radius:28px;pointer-events:auto;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font:300 160px/1 system-ui;color:rgba(184,162,114,.8);transition:background .15s}
+.slot.empty{background:rgba(255,255,255,.55)}
+.slot:hover,.slot.over{background:rgba(201,168,106,.22)}
+.slot.sel{border-style:solid;border-color:var(--sel)}
+.slot .x{position:absolute;right:14px;top:14px;width:64px;height:64px;border-radius:50%;background:#fff;color:var(--ink);font:34px/64px system-ui;text-align:center;display:none;box-shadow:0 2px 10px #0003}
+.slot:hover .x{display:block}.slot.empty .x{display:none!important}
+aside{display:flex;flex-direction:column;gap:10px;min-height:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+#insp{min-height:150px}
+#insp h3,#lib h3{margin:0 0 8px;font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.05em}
+.row{display:flex;gap:8px;align-items:center;margin:6px 0}
+.row label{width:64px;color:var(--mute);flex:none}
+.lay{display:flex;gap:6px;flex-wrap:wrap}
+.lay button{padding:5px;width:64px;height:46px;display:flex;align-items:center;justify-content:center}
+.lay button.on{border-color:var(--sel);background:var(--acc2)}
+.lay i{position:relative;display:block;width:48px;height:27px;background:#ece6da;border-radius:4px}
+.lay b{position:absolute;background:#b9ab8f;border-radius:2px}
+#lib{flex:1;display:flex;flex-direction:column;min-height:0}
+.tabs{display:flex;gap:6px;margin-bottom:8px}
+.tabs button{border-radius:999px;padding:4px 12px}.tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+#grid{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));grid-auto-rows:92px;gap:10px;align-content:start;padding:6px}
+#grid .ph{position:relative;min-height:0;border-radius:10px;overflow:hidden;background:#e9e4da;cursor:grab}
+#grid .ph img{width:100%;height:100%;object-fit:cover;display:block}
+#grid .ph:hover{outline:2px solid var(--acc)}
+#grid .ph em{position:absolute;right:3px;bottom:3px;background:#fffc;border-radius:999px;padding:0 6px;font-style:normal;font-size:11px}
+#grid .ph.hide{display:none}
+#mlist{flex:1;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.mi{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.mi span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mi.used{opacity:.5}
+footer{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);display:flex;flex-direction:column;min-height:0}
+#tbar{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}
+#tbar .sp{flex:1}#tbar input[type=range]{width:140px;accent-color:var(--acc)}
+#tlscroll{flex:1;overflow:auto;position:relative}
+#tlin{position:relative;height:100%;min-height:222px}
+#ruler{position:sticky;top:0;height:24px;border-bottom:1px solid var(--line);background:var(--panel);z-index:5;cursor:pointer}
+#ruler span{position:absolute;top:0;height:24px;border-left:1px solid var(--line);padding:4px 0 0 4px;font-size:11px;color:var(--mute);pointer-events:none}
+.lane{position:absolute;left:0;right:0}
+#lane-p{top:32px;height:78px}
+#lane-m{top:118px;height:118px}
+.lab{position:sticky;left:6px;z-index:6;display:inline-block;background:#fffd;border-radius:999px;padding:0 8px;font-size:11px;color:var(--mute)}
+.clip{position:absolute;top:14px;height:62px;border-radius:10px;background:#fff;border:1px solid var(--line);overflow:hidden;display:flex;cursor:grab}
+.clip.sel{border:2px solid var(--sel);box-shadow:0 0 0 3px rgba(201,168,106,.25)}
+.clip.warn{background:repeating-linear-gradient(45deg,#fff,#fff 6px,#f6e8e0 6px,#f6e8e0 12px)}
+.clip .seg{flex:1;min-width:0;border-right:1px solid #fff;position:relative}
+.clip .seg:last-of-type{border:0}
+.clip .seg img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+.clip .seg.sel{outline:3px solid var(--sel);outline-offset:-3px;z-index:1}
+.clip .seg.over{background:var(--acc2)}
+.clip.title{background:var(--acc2);align-items:center;justify-content:center;font-size:11px;color:var(--mute);cursor:default}
+.rz{position:absolute;right:0;top:0;bottom:0;width:7px;cursor:ew-resize;background:linear-gradient(90deg,transparent,rgba(120,100,60,.35));opacity:0;z-index:2}
+.clip:hover .rz,.clip.sel .rz{opacity:1}
+.tag{position:absolute;left:3px;top:3px;background:#fffc;border-radius:6px;font-size:10px;padding:0 4px;pointer-events:none;z-index:1}
+#ins{position:absolute;top:8px;height:72px;width:3px;margin-left:-1px;background:var(--sel);border-radius:2px;display:none;z-index:7}
+.blk{position:absolute;height:46px;border-radius:12px;padding:4px 14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:grab;border:1px solid rgba(0,0,0,.06);font-size:12px;display:flex;flex-direction:column;justify-content:center}
+.blk small{color:#0008;font-size:10px}
+.blk.sel{outline:3px solid var(--sel);outline-offset:-1px}
+.blk .h{position:absolute;top:0;bottom:0;width:9px;cursor:ew-resize;background:rgba(0,0,0,.12);opacity:0}
+.blk:hover .h,.blk.sel .h{opacity:1}
+.blk .hl{left:0}.blk .hr{right:0}
+.xf{position:absolute;height:20px;border-radius:999px;background:linear-gradient(90deg,#f3d9a8,#cfe3d6);border:1px solid rgba(0,0,0,.08);font-size:10px;line-height:18px;text-align:center;color:#0009;cursor:ew-resize;z-index:3;min-width:34px;overflow:hidden}
+#ph{position:absolute;top:0;bottom:0;width:2px;background:#d9534f;z-index:8;pointer-events:none}
+#ph::before{content:"";position:absolute;top:0;left:-5px;border:6px solid transparent;border-top:9px solid #d9534f}
+body.dragging,body.dragging *{cursor:grabbing!important}
+
+#xm{position:fixed;inset:0;background:rgba(70,60,48,.28);display:none;align-items:center;justify-content:center;z-index:50}
+#xm.on{display:flex}
+#xbox{width:560px;max-width:94vw;max-height:94vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:20px 22px;box-shadow:0 20px 60px rgba(70,55,40,.25)}
+#xbox h2{margin:0 0 14px;font-size:16px}
+#xbox .g{display:grid;grid-template-columns:96px 1fr;gap:10px 12px;align-items:center;margin-bottom:12px}
+#xbox .g label{color:var(--mute)}
+#xbox select{width:100%;border:1px solid var(--line);border-radius:10px;padding:7px 10px;background:#fff}
+#xfolder{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+#xfolder span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mute)}
+#xinfo{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px;color:var(--ink)}
+#xprog{height:10px;background:#ece6da;border-radius:999px;overflow:hidden;margin:10px 0 6px}
+#xfill{height:100%;width:0;background:var(--acc);border-radius:999px;transition:width .3s}
+#xtxt{color:var(--mute);min-height:18px;font-variant-numeric:tabular-nums}
+#xlog{margin-top:8px;max-height:110px;overflow:auto;font-size:12px;color:var(--mute);white-space:pre-wrap}
+#xbtns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+#start{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px}
+#start .box{width:520px;max-width:100%;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:28px 28px 22px;box-shadow:0 20px 60px rgba(70,55,40,.12)}
+#start h1{margin:0 0 6px;font:400 34px 'Great Vibes',cursive;color:var(--acc)}
+#start p{margin:0 0 14px;color:var(--mute);line-height:1.7}
+#start ul{margin:0 0 18px;padding-left:20px;line-height:1.8}
+#start .btns{display:flex;gap:8px;flex-wrap:wrap}
+#start .btns button{padding:9px 16px}
+#sprog{height:8px;background:#ece6da;border-radius:999px;overflow:hidden;margin:16px 0 6px;display:none}
+#sfill{height:100%;width:0;background:var(--acc);transition:width .2s}
+#smsg{color:var(--mute);min-height:20px;white-space:pre-wrap}
+#smsg.err{color:#b4544a}
+#pv:fullscreen{padding:0;background:#111;border:0;border-radius:0}
+#pv:fullscreen #stage{border-radius:0;box-shadow:none}
+#pv:fullscreen #ov{display:none}
+</style>
+<div id="app">
+ <header>
+  <h1>婚紗輪播 編輯器</h1>
+  <button id="bplay" class="pri" style="width:84px">▶ 播放</button>
+  <span id="tc"></span>
+  <button id="bundo" title="Ctrl+Z">↶ 復原</button><button id="bredo" title="Ctrl+Y">↷ 重做</button>
+  <span class="sp"></span>
+  <button id="bfull" title="全螢幕預覽 (F)">⛶ 全螢幕</button>
+  <span id="status"></span>
+  <button id="bexport">輸出 mp4…</button><button id="bsave" class="pri" title="Ctrl+S">儲存 timeline.js</button>
+ </header>
+ <main>
+  <section id="pv"><div id="pvbox"><div id="stage"><div id="ov"></div></div></div></section>
+  <aside>
+   <div id="insp" class="card"></div>
+   <div id="lib" class="card">
+    <div class="tabs"><button data-tab="p" class="on">照片庫</button><button data-tab="m">音樂庫</button></div>
+    <div id="pfilter" class="tabs"><button data-f="all" class="on">全部</button><button data-f="p">直</button><button data-f="l">橫</button><button data-f="u">未使用</button></div>
+    <div id="grid"></div><div id="mlist" style="display:none"></div>
+   </div>
+  </aside>
+ </main>
+ <footer>
+  <div id="tbar">
+   <button id="badd">＋ 新增頁</button><button id="bdup">複製頁</button><button id="bdel">刪除頁</button>
+   <span class="sp"></span><span style="color:var(--mute)">縮放</span><input id="zoom" type="range" min="3" max="80" step="1">
+  </div>
+  <div id="tlscroll"><div id="tlin">
+   <div id="ruler"></div>
+   <div class="lane" id="lane-p"><span class="lab">照片</span></div>
+   <div class="lane" id="lane-m"><span class="lab">音樂</span></div>
+   <div id="ins"></div><div id="ph"></div>
+  </div></div>
+ </footer>
+</div>
+
+<div id="xm"><div id="xbox">
+ <h2>輸出 mp4</h2>
+ <div class="g">
+  <label>解析度</label><select id="xw"><option value="1920">1920 × 1080（Full HD）</option><option value="1280">1280 × 720</option><option value="2560">2560 × 1440</option></select>
+  <label>幀率</label><select id="xfps"><option value="24">24 fps</option><option value="25">25 fps</option><option value="30">30 fps</option><option value="60">60 fps</option></select>
+  <label>畫質</label><select id="xbr"><option value="8000000">標準（8 Mbps）</option><option value="16000000" selected>高（16 Mbps）</option><option value="24000000">極高（24 Mbps）</option><option value="40000000">最高（40 Mbps）</option></select>
+  <label>編碼器</label><select id="xhw"><option value="no-preference">自動</option><option value="prefer-hardware">優先用顯示卡（較快）</option><option value="prefer-software">優先用 CPU（較穩）</option></select>
+  <label>範圍</label><select id="xrange"><option value="0">完整影片</option><option value="60">只輸出前 60 秒（試看）</option></select>
+ </div>
+ <div id="xinfo"></div>
+ <div id="xprog"><div id="xfill"></div></div><div id="xtxt"></div><div id="xlog"></div>
+ <div id="xbtns"><button id="xclear">清除暫存</button><button id="xclose">關閉</button><button id="xstop" style="display:none">⏸ 中斷</button><button id="xgo" class="pri">開始輸出</button></div>
+</div></div>
+<div id="start"><div class="box">
+ <h1>Our Wedding</h1>
+ <p>把一個資料夾裡的照片和音樂，排成有淡入淡出的輪播影片，可以編輯後輸出 mp4。<br>所有處理都在你的瀏覽器裡完成，<b>照片和音樂不會上傳到任何地方</b>。</p>
+ <ul>
+  <li>把照片（jpg / png / webp）和歌曲（mp3 / m4a / wav / ogg）放進同一個資料夾，可以有子資料夾。</li>
+  <li>工具會在那個資料夾裡建立 <code>_slideshow</code> 子資料夾，存放縮圖、編輯進度和輸出的影片。</li>
+  <li>需要電腦版 Chrome 或 Edge。</li>
+ </ul>
+ <div class="btns"><button id="spick" class="pri">選擇資料夾…</button><button id="sresume" style="display:none"></button></div>
+ <div id="sprog"><div id="sfill"></div></div><div id="smsg"></div>
+</div></div>
+<script src="player.js"></script>
+<script src="exporter.js"></script>
+<script src="library.js"></script>
