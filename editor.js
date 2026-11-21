@@ -309,7 +309,7 @@ window.__ed = {get cfg() { return cfg; }, P, assign, setLayout};
 // ---------- 輸出 mp4 面板 ----------
 (() => {
   const $x = id => document.getElementById(id), X = {root: ROOT, io: null, running: false, abort: false, wake: null};
-    const opts = () => { const w = +$x('xw').value; return {w, h: Math.round(w * 9 / 16), fps: +$x('xfps').value, bitrate: +$x('xbr').value, hw: $x('xhw').value, range: +$x('xrange').value}; };
+    const opts = () => { const w = +$x('xw').value, [aw, ah] = $x('xar').value.split(':'); return {w, h: Math.round(w * ah / aw / 2) * 2, tag: aw == 16 && ah == 9 ? '' : aw + 'x' + ah, fps: +$x('xfps').value, bitrate: +$x('xbr').value, hw: $x('xhw').value, range: +$x('xrange').value}; };
   const log = t => { const l = $x('xlog'); l.textContent += t + '\n'; l.scrollTop = l.scrollHeight; };
   const prog = (p, t) => { if (p != null) $x('xfill').style.width = Math.round(p * 1000) / 10 + '%'; if (t != null) $x('xtxt').textContent = t; };
   const fmtMB = b => (b / 1048576).toFixed(0) + ' MB';
@@ -325,7 +325,7 @@ window.__ed = {get cfg() { return cfg; }, P, assign, setLayout};
     if (!(await ensurePerm(false))) { info.textContent = '需要重新授權這個資料夾。'; btn.textContent = '授權並開始'; btn.disabled = false; return; }
     try {
       const o = opts(), io = FsIo2(), st = await Exporter.inspect(io, cfg, o), P = st.P, mb = (o.bitrate * P.Dsec / 8 + 192000 * P.Dsec / 8) / 1048576;
-      info.innerHTML = `長度 ${Math.floor(P.Dsec / 60)} 分 ${Math.round(P.Dsec % 60)} 秒 · ${P.total} 格 · 預估檔案約 ${mb.toFixed(0)} MB<br>` +
+      info.innerHTML = `${o.w} × ${o.h} · 長度 ${Math.floor(P.Dsec / 60)} 分 ${Math.round(P.Dsec % 60)} 秒 · ${P.total} 格 · 預估檔案約 ${mb.toFixed(0)} MB<br>` +
         (st.done || st.audio ? `已有暫存：影片 ${st.done}/${st.nseg} 段${st.audio ? '、音樂已處理' : ''}（時間軸或設定有變動的段落會自動重做）` : '尚無暫存，會從頭開始。');
       btn.textContent = st.done == st.nseg && st.audio ? '重新封裝' : st.done || st.audio ? '繼續輸出' : '開始輸出'; btn.disabled = false;
     } catch (e) { info.textContent = '讀取資料夾失敗：' + e.message;btn.disabled = true; }
@@ -336,7 +336,7 @@ window.__ed = {get cfg() { return cfg; }, P, assign, setLayout};
     refresh();
   };
   $x('xclose').onclick = () => { if (X.running && !confirm('輸出還在進行中，要中斷並關閉嗎？（已完成的段落會保留，下次可以繼續）')) return; X.abort = true; $x('xm').classList.remove('on'); };
-  ['xw', 'xfps', 'xbr', 'xhw', 'xrange'].forEach(id => $x(id).onchange = refresh);
+  ['xw', 'xar', 'xfps', 'xbr', 'xhw', 'xrange'].forEach(id => $x(id).onchange = refresh);
   $x('xstop').onclick = () => { X.abort = true; $x('xtxt').textContent = '正在中斷…（會先完成目前這一段）'; };
   $x('xclear').onclick = async () => {
     if (X.running || !confirm('要清除所有輸出暫存嗎？（已輸出完成的 mp4 不會被刪除）')) return;
@@ -346,7 +346,7 @@ window.__ed = {get cfg() { return cfg; }, P, assign, setLayout};
   $x('xgo').onclick = async () => {
     if (!(await ensurePerm(true))) return refresh();
     X.running = true; X.abort = false; const o = opts(); $x('xlog').textContent = '';
-    ['xgo', 'xclear'].forEach(id => $x(id).disabled = true); $x('xstop').style.display = ''; ['xw', 'xfps', 'xbr', 'xhw', 'xrange'].forEach(id => $x(id).disabled = true);
+    ['xgo', 'xclear'].forEach(id => $x(id).disabled = true); $x('xstop').style.display = ''; ['xw', 'xar', 'xfps', 'xbr', 'xhw', 'xrange'].forEach(id => $x(id).disabled = true);
     try { X.wake = await navigator.wakeLock.request('screen'); } catch (e) {}
     const snapCfg = JSON.parse(JSON.stringify(cfg));   // 輸出期間以按下當下的內容為準
     try {
@@ -355,7 +355,7 @@ window.__ed = {get cfg() { return cfg; }, P, assign, setLayout};
       else { prog(1, `完成：${ROOT.name}\\_slideshow\\export\\${r.name}（${fmtMB(r.size)}，用時 ${Math.round(r.seconds / 60)} 分鐘）`); log('完成 ✓ ' + r.name); }
     } catch (e) { console.error(e); prog(null, '失敗：' + e.message); log('失敗：' + (e.stack || e.message)); }
     X.running = false; try { X.wake && X.wake.release(); } catch (e) {}
-    ['xclear'].forEach(id => $x(id).disabled = false); ['xw', 'xfps', 'xbr', 'xhw', 'xrange'].forEach(id => $x(id).disabled = false); $x('xstop').style.display = 'none'; refresh();
+    ['xclear'].forEach(id => $x(id).disabled = false); ['xw', 'xar', 'xfps', 'xbr', 'xhw', 'xrange'].forEach(id => $x(id).disabled = false); $x('xstop').style.display = 'none'; refresh();
   };
   addEventListener('beforeunload', e => { if (X.running) e.preventDefault(); });
 })();

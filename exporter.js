@@ -15,11 +15,12 @@ const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
 // ================= 畫面 =================
 function Renderer(o) {
-  const sc = o.scale, cw = Math.round(W * sc), ch = Math.round(H * sc), TL = o.TL, FR = TL.frames, fade = TL.fade;
+  // 輸出可以不是 16:9: 1920x1080 的版面等比縮放後置中(ox, oy), 背景延伸填滿整個畫面
+  const cw = o.w, ch = o.h, sc = Math.min(cw / W, ch / H), ox = (cw - W * sc) / 2, oy = (ch - H * sc) / 2, TL = o.TL, FR = TL.frames, fade = TL.fade;
   const cv = new OffscreenCanvas(cw, ch), ctx = cv.getContext('2d');
   const gv = new OffscreenCanvas(cw, ch), gx = gv.getContext('2d');
   const bgc = new OffscreenCanvas(cw, ch), bx = bgc.getContext('2d');
-  bx.setTransform(sc * 960 * Math.SQRT2, 0, 0, sc * 648 * Math.SQRT2, 960 * sc, 432 * sc);
+  bx.setTransform(sc * 960 * Math.SQRT2, 0, 0, sc * 648 * Math.SQRT2, ox + 960 * sc, oy + 432 * sc);
   const gr = bx.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, '#f2efea'); gr.addColorStop(1, '#e3ded6');
   bx.fillStyle = gr; bx.fillRect(-5, -5, 10, 10);
   const layers = new Map(), outAt = k => k + 1 < FR.length ? FR[k + 1].a : TL.E;
@@ -35,11 +36,11 @@ function Renderer(o) {
       L.photos.push({bmp: big, r: r[i], i});
       if (f.t == 'p1') { // 單張直幅: 同一張照片模糊放大當背景(CSS: inset -8%, blur 50px saturate .8 brightness 1.1, 再蓋 50% 白紗)
         const sm = await createImageBitmap(blob, {resizeWidth: 480, resizeHeight: Math.round(480 * it[2] / it[1]), resizeQuality: 'medium'});
-        const c = new OffscreenCanvas(cw, ch), x = c.getContext('2d'), ew = W * 1.16, eh = H * 1.16, ar = sm.width / sm.height;
+        const c = new OffscreenCanvas(cw, ch), x = c.getContext('2d'), ew = cw * 1.16, eh = ch * 1.16, ar = sm.width / sm.height;
         let sw = sm.width, sh = sm.height, sx = 0, sy = 0;
         if (ar > ew / eh) { sw = sh * ew / eh; sx = (sm.width - sw) / 2; } else { sh = sw * eh / ew; sy = (sm.height - sh) / 2; }
         x.filter = `blur(${50 * sc}px) saturate(.8) brightness(1.1)`;
-        x.drawImage(sm, sx, sy, sw, sh, -W * .08 * sc, -H * .08 * sc, ew * sc, eh * sc); sm.close(); L.bg = c;
+        x.drawImage(sm, sx, sy, sw, sh, -cw * .08, -ch * .08, ew, eh); sm.close(); L.bg = c;
       }
     }
     if (f.x && f.x[0]) L.text = layoutText(f, x0, xe);
@@ -73,7 +74,7 @@ function Renderer(o) {
     if (f.t == 'title') {
       const ko = ease(clamp((T - a) / fade)), wv = .5 - .5 * Math.cos(T * 2 * Math.PI / 3);
       const f1 = `${40 * sc}px "Cormorant Garamond", Georgia, serif`;
-      c.save(); c.textAlign = 'center'; c.fillStyle = '#8b7f70';
+      c.save(); c.translate(ox, oy); c.textAlign = 'center'; c.fillStyle = '#8b7f70';
       c.font = f1; const m1 = c.measureText('✦'), h1 = (m1.fontBoundingBoxAscent + m1.fontBoundingBoxDescent) / sc;
       c.font = CAPF; const m2 = c.measureText('M'), h2 = (m2.fontBoundingBoxAscent + m2.fontBoundingBoxDescent) / sc;
       const top = (H - (h1 + 40 + h2)) / 2;
@@ -90,6 +91,7 @@ function Renderer(o) {
       c.globalAlpha = ko; c.drawImage(L.bg, 0, 0);
       c.fillStyle = `rgba(246,243,238,${.5 * ko})`; c.globalAlpha = 1; c.fillRect(0, 0, cw, ch);
     }
+    c.save(); c.translate(ox, oy);
     for (const {bmp, r, i} of L.photos) {
       const ko = ease(clamp((T - a - i * .35) / fade)); if (ko <= 0) continue;
       const Ws = r.w * s, Hs = r.h * s, X = r.x + r.w / 2 - Ws / 2, Y = r.y + r.h / 2 - Hs / 2;
@@ -97,6 +99,7 @@ function Renderer(o) {
       c.imageSmoothingQuality = 'high'; c.drawImage(bmp, X * sc, Y * sc, Ws * sc, Hs * sc); c.restore();
     }
     if (L.text) drawText(c, L.text, ease(clamp((T - a - .9) / fade)));
+    c.restore();
   }
   const visible = T => { const ks = []; FR.forEach((f, k) => { if (f.a <= T && T < outAt(k) + fade) ks.push(k); }); return ks; };
   const ensure = k => { if (!layers.has(k)) { const e = {v: null}; e.p = load(k).then(v => (e.v = v)); layers.set(k, e); } return layers.get(k).p; };
@@ -297,9 +300,8 @@ async function run(cfg, io, o, ui, abort) {
   await Promise.all([document.fonts.load('84px "Great Vibes"'), document.fonts.load('34px "Cormorant Garamond"')]).catch(() => 0);
   const ai = await readHeader(io, `${SEGD}/audio.bin`);
   if (!(ai && ai.j.sig === P.asig)) { ui.log('處理音樂…'); const ok = await encodeAudio(P, io, o, ui, abort); if (!ok) return {aborted: true}; }
-  const sc = o.w / W;
   const loadPhoto = f => io.read(f);
-  const R = Renderer({TL: P.TL, scale: sc, loadPhoto});
+  const R = Renderer({TL: P.TL, w: o.w, h: o.h, loadPhoto});
   const t0 = performance.now(); let doneFrames = 0, todo = 0;
   const valid = [];
   for (let s = 0; s < P.nseg; s++) { const h = await readHeader(io, `${SEGD}/v_${String(s).padStart(4, '0')}.bin`); valid[s] = !!(h && h.j.sig === P.sigs[s]); if (!valid[s]) todo += Math.min(P.total, (s + 1) * P.segN) - s * P.segN; }
@@ -318,7 +320,7 @@ async function run(cfg, io, o, ui, abort) {
     doneFrames += Math.min(P.total, (s + 1) * P.segN) - s * P.segN;
   }
   ui.log('封裝 mp4…');
-  const name = o.range ? 'wedding_test.mp4' : 'wedding.mp4', r = await mux(P, io, o, ui, name);
+  const name = `wedding${o.tag ? '_' + o.tag : ''}${o.range ? '_test' : ''}.mp4`, r = await mux(P, io, o, ui, name);
   return {name, size: r.size, seconds: (performance.now() - t0) / 1000};
 }
 

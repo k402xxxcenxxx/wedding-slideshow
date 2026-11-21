@@ -173,7 +173,8 @@ body.dragging,body.dragging *{cursor:grabbing!important}
 <div id="xm"><div id="xbox">
  <h2>輸出 mp4</h2>
  <div class="g">
-  <label>解析度</label><select id="xw"><option value="1920">1920 × 1080（Full HD）</option><option value="1280">1280 × 720</option><option value="2560">2560 × 1440</option></select>
+  <label>畫面比例</label><select id="xar"><option value="16:9">16:9（一般螢幕、YouTube）</option><option value="16:10">16:10（筆電、部分投影機）</option><option value="4:3">4:3（舊式投影機、電視）</option><option value="1:1">1:1（正方形）</option></select>
+  <label>寬度</label><select id="xw"><option value="1920">1920（Full HD）</option><option value="1280">1280（較快、檔案較小）</option><option value="2560">2560（2K）</option></select>
   <label>幀率</label><select id="xfps"><option value="24">24 fps</option><option value="25">25 fps</option><option value="30">30 fps</option><option value="60">60 fps</option></select>
   <label>畫質</label><select id="xbr"><option value="8000000">標準（8 Mbps）</option><option value="16000000" selected>高（16 Mbps）</option><option value="24000000">極高（24 Mbps）</option><option value="40000000">最高（40 Mbps）</option></select>
   <label>編碼器</label><select id="xhw"><option value="no-preference">自動</option><option value="prefer-hardware">優先用顯示卡（較快）</option><option value="prefer-software">優先用 CPU（較穩）</option></select>
