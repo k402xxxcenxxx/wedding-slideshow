@@ -135,6 +135,30 @@ function autoTimeline(photos, music) {
   return {fade: FADE, fadeIn: FADE_IN, fadeOut: FADE_OUT, frames, audio: {tracks}};
 }
 
+// 時間軸裡的照片/歌曲對應到這個資料夾: 先比完整路徑, 再比檔名(舊版 timeline.js 的路徑不同); 都對不到的清空並計數
+function fixPaths(tl, photos, music) {
+  const P = new Map(photos.map(p => [p.f, p])), M = new Set(music.tracks.map(m => m.src)), bn = s => s.split('/').pop().toLowerCase();
+  const byP = new Map(photos.map(p => [bn(p.f), p.f])), byM = new Map(music.tracks.map(m => [bn(m.src), m.src]));
+  const miss = {photos: new Set(), music: []};
+  tl.frames.forEach(f => f.it && (f.it = f.it.map(x => {
+    if (!x) return null;
+    const p = P.get(x[0]) || P.get(byP.get(bn(x[0])));
+    if (!p) miss.photos.add(x[0]);
+    return p ? [p.f, p.w, p.h] : null;
+  })));
+  tl.audio.tracks = tl.audio.tracks.filter(k => {
+    const s = M.has(k.src) ? k.src : byM.get(bn(k.src));
+    if (!s) miss.music.push(k.name || k.src);
+    return s && (k.src = s);
+  });
+  return {tl, miss: {photos: [...miss.photos], music: miss.music}};
+}
+function parseTimeline(text) { // 接受 timeline.json 或舊版 timeline.js(window.TL = {...};)
+  const tl = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+  if (!Array.isArray(tl.frames) || !tl.audio || !Array.isArray(tl.audio.tracks)) throw new Error('不是時間軸檔案');
+  return tl;
+}
+
 // ---------- 開啟 ----------
 async function open(root) {
   $('spick').disabled = $('sresume').disabled = true;
@@ -148,11 +172,7 @@ async function open(root) {
     const mt = Object.entries(S.lib.music).map(([rel, m]) => ({name: rel.split('/').pop().replace(/\.[^.]+$/, ''), src: rel, dur: r3(m.dur), ss: r3(m.ss), es: r3(m.es), lufs: m.lufs}));
     const music = {target: mt.length ? Math.min(...mt.map(m => m.lufs)) : -16, tracks: mt};
     let tl = await io.read(TLP).then(f => f.text()).then(JSON.parse).catch(() => null);
-    if (tl) { // 已存的時間軸: 拿掉資料夾裡已經不存在的照片/歌曲
-      const has = new Set(photos.map(p => p.f)), hasM = new Set(mt.map(m => m.src));
-      tl.frames.forEach(f => f.it && (f.it = f.it.map(x => x && has.has(x[0]) ? x : null)));
-      tl.audio.tracks = tl.audio.tracks.filter(k => hasM.has(k.src));
-    } else tl = autoTimeline(photos, music);
+    tl = tl ? fixPaths(tl, photos, music).tl : autoTimeline(photos, music);
     const urls = new Map(), tUrls = new Map(), url = (m, k, b) => m.get(k) || (m.set(k, URL.createObjectURL(b)), m.get(k));
     Object.assign(g, {
       ROOT: root, IO: io, TL_PATH: TLP, PHOTOS: photos, MUSIC: music, TL: tl,
@@ -182,5 +202,5 @@ if (!g.showDirectoryPicker || !g.VideoEncoder || !g.OffscreenCanvas) {
     b.onclick = async () => { if ((await h.requestPermission({mode: 'readwrite'})) == 'granted') open(h); };
   }).catch(() => 0);
 }
-g.SlideshowLib = {open, autoTimeline, oneRound, loudnessOf, analyzeAudio};
+g.SlideshowLib = {open, autoTimeline, oneRound, loudnessOf, analyzeAudio, fixPaths, parseTimeline};
 })(window);

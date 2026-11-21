@@ -291,6 +291,17 @@ async function save() {
   } catch (e) { $('#status').textContent = '儲存失敗：' + e.message; }
 }
 $('#bsave').onclick = save;
+$('#bimport').onclick = () => $('#fimport').click();
+$('#fimport').onchange = async e => {
+  const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+  try {
+    const r = SlideshowLib.fixPaths(SlideshowLib.parseTimeline(await file.text()), PHOTOS, MUSIC);
+    commit(() => { cfg = r.tl; sel = null; slot = null; }); // 可以用「復原」回到匯入前
+    const miss = [r.miss.photos.length && `${r.miss.photos.length} 張照片（${r.miss.photos.slice(0, 5).join('、')}${r.miss.photos.length > 5 ? '…' : ''}）`,
+      r.miss.music.length && `${r.miss.music.length} 首歌（${r.miss.music.join('、')}）`].filter(Boolean);
+    alert(miss.length ? `已匯入。這個資料夾裡找不到：\n${miss.join('\n')}\n\n找不到的照片格子會留空，找不到的歌曲已移除。把檔案放進資料夾後重新整理頁面，再匯入一次即可。` : '已匯入，所有照片和歌曲都對應到了。記得按「儲存」。');
+  } catch (err) { alert('匯入失敗：' + err.message); }
+};
 addEventListener('beforeunload', e => { if (dirty) e.preventDefault(); });
 
 P.setConfig(cfg); $('#zoom').value = pps; renderAll(); P.seek(cfg.frames.length > 1 ? P.TL.frames[1].a + 2.4 : 0);
